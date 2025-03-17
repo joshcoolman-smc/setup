@@ -12,24 +12,42 @@ APP_NAME=$1
 # Convert the app name to title case (capitalize first letter of each word)
 APP_TITLE=$(echo "$APP_NAME" | awk '{ for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2)) } 1')
 
-# Step 1: Initialize a new Next.js app with pnpm, automatically including Tailwind CSS
+# Step 1: Remove existing directory if it exists
+echo "Cleaning up any existing directory..."
+rm -rf "$APP_NAME"
+
+# Step 2: Initialize a new Next.js app with pnpm, automatically including Tailwind CSS
 echo "Initializing a new Next.js app named $APP_NAME..."
-pnpm create next-app@latest "$APP_NAME" --ts --eslint --src-dir --app --import-alias "@/*" --tailwind --yes
+npx create-next-app@latest "$APP_NAME" --ts --tailwind --eslint --app --src-dir --use-pnpm --turbopack false --yes
 
-# Step 2: Install required dependencies
-echo "Installing NextThemes, lucide-react, and other dependencies..."
-cd "$APP_NAME"
-pnpm install next-themes lucide-react
+# Step 3: Move into the project directory
+cd "$APP_NAME" || { echo "Failed to create or access the app directory"; exit 1; }
 
-# Step 3: Initialize ShadCN in the Next.js app with defaults
-echo "Initializing ShadCN with default options..."
-pnpm dlx shadcn@latest init -d
+# Step 4: Install required dependencies
+echo "Installing NextThemes, lucide-react, clsx, tailwind-merge, and other dependencies..."
+pnpm install next-themes lucide-react clsx tailwind-merge
 
-# Step 4: Install all ShadCN components
+# Step 5: Initialize ShadCN with slate as the base color
+echo "Initializing ShadCN..."
+echo "slate" | pnpm dlx shadcn@latest init
+
+# Step 6: Create utils.ts file
+echo "Creating utils.ts file..."
+mkdir -p src/lib
+cat > src/lib/utils.ts <<EOL
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+ 
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+EOL
+
+# Step 7: Install all ShadCN components
 echo "Installing all ShadCN components..."
-pnpm dlx shadcn@latest add -a
+pnpm dlx shadcn@latest add accordion alert alert-dialog aspect-ratio avatar badge breadcrumb button calendar card carousel chart checkbox collapsible command context-menu dialog drawer dropdown-menu form hover-card input input-otp label menubar navigation-menu pagination popover progress radio-group resizable scroll-area select separator sheet sidebar skeleton slider sonner switch table tabs textarea toggle toggle-group tooltip --yes
 
-# Step 5: Update layout.tsx with provided content
+# Step 8: Update layout.tsx with provided content
 echo "Updating layout.tsx..."
 cat > src/app/layout.tsx <<EOL
 import type { Metadata } from "next";
@@ -52,7 +70,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={\`\${bitter.className} antialiased\`}>
+      <body className={\`\${bitter.className} antialiased\`} suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <GlobalNav />
           {children}
@@ -63,7 +81,7 @@ export default function RootLayout({
 }
 EOL
 
-# Step 6: Update page.tsx with provided content
+# Step 9: Update page.tsx with provided content
 echo "Updating page.tsx..."
 cat > src/app/page.tsx <<EOL
 import { Button } from "@/components/ui/button"
@@ -71,13 +89,13 @@ import { Button } from "@/components/ui/button"
 export default function Home() {
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <Button>Hello</Button>
+      <Button className="cursor-pointer">Hello</Button>
     </div>
   );
 }
 EOL
 
-# Step 7: Create theme-provider.tsx component
+# Step 10: Create theme-provider.tsx component
 echo "Creating theme-provider.tsx..."
 mkdir -p src/components
 cat > src/components/theme-provider.tsx <<EOL
@@ -88,26 +106,33 @@ import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { type ThemeProviderProps } from "next-themes/dist/types"
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  return (
+    <NextThemesProvider {...props} suppressHydrationWarning>
+      {children}
+    </NextThemesProvider>
+  )
 }
 EOL
 
-# Step 8: Create global-nav.tsx component with dynamic title
+# Step 11: Create global-nav.tsx component with dynamic title
 echo "Creating global-nav.tsx..."
 cat > src/components/global-nav.tsx <<EOL
+import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 export function GlobalNav() {
   return (
     <nav className="fixed top-0 left-0 right-0 flex justify-between items-center p-4 bg-zinc-300 dark:bg-black">
-      <div className="text-2xl font-bold">$APP_TITLE</div>
+      <Link href="/" className="text-2xl font-bold hover:opacity-80 transition-opacity cursor-pointer">
+        $APP_TITLE
+      </Link>
       <ThemeToggle />
     </nav>
   )
 }
 EOL
 
-# Step 9: Create theme-toggle.tsx component with sun and moon icons
+# Step 12: Create theme-toggle.tsx component with sun and moon icons
 echo "Creating theme-toggle.tsx..."
 cat > src/components/theme-toggle.tsx <<EOL
 "use client"
@@ -121,31 +146,37 @@ import { Button } from "@/components/ui/button"
 export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false)
 
+  // useEffect only runs on the client, so now we can safely show the UI
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
   const { theme, setTheme } = useTheme()
 
-  if (!mounted) {
-    return <Button variant="outline" size="icon" />
-  }
-
+  // Render the same button shape regardless of mounted state to avoid hydration mismatch
   return (
     <Button
       variant="outline"
       size="icon"
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      className="cursor-pointer"
+      onClick={() => mounted && setTheme(theme === "light" ? "dark" : "light")}
+      suppressHydrationWarning
     >
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      {mounted ? (
+        <>
+          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        </>
+      ) : (
+        <div className="h-[1.2rem] w-[1.2rem]" />
+      )}
       <span className="sr-only">Toggle theme</span>
     </Button>
   )
 }
 EOL
 
-# Step 10: Create conventions.md file
+# Step 13: Create conventions.md file
 echo "Creating conventions.md..."
 cat > conventions.md <<EOL
 # Folder Structure:
@@ -178,7 +209,7 @@ root
 - Add "use client" to the top of files which rely on React to maintain state or have interactivity or use hooks.
 EOL
 
-# Step 11: Create .aider.conf.yml file
+# Step 14: Create .aider.conf.yml file
 echo "Creating .aider.conf.yml..."
 cat > .aider.conf.yml <<EOL
 read: ["conventions.md", "package.json"]
@@ -187,7 +218,7 @@ EOL
 # Return to original directory
 cd ..
 
-# Step 12: Create .clinerules file
+# Step 15: Create .clinerules file
 echo "Creating .clinerules file..."
 cd "$APP_NAME"
 cat > .clinerules <<EOL
@@ -222,7 +253,7 @@ cat > .clinerules <<EOL
 
 ## Import Guidelines
 - Use @/ alias for all imports from the src directory
-- Example: import { Button } from "'components/ui/button"' (see below for file content)
+- Example: import { Button } from "@/components/ui/button" (see below for file content)
 - The @/ alias is properly configured in tsconfig.json
 - Avoid relative paths for imports from src directory
 - Keep imports organized and grouped by type (external, internal, etc.)
@@ -237,6 +268,6 @@ src/app/features/[feature-name]/
 └── utils/
 EOL
 
-# Step 13: Run the development server
+# Step 16: Run the development server
 echo "Starting the development server..."
 pnpm run dev
