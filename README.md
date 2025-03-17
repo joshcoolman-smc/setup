@@ -4,12 +4,12 @@ A script to quickly bootstrap a Next.js project with a modern stack and best pra
 
 ## Features
 
-Both setup scripts provide a Next.js project with:
+The setup script provides a Next.js project with:
 
 - TypeScript support
 - ESLint configuration
-- Tailwind CSS for styling (v4 in canary version)
-- ShadcnUI components (latest patterns in canary version)
+- Tailwind CSS v4 for styling
+- ShadcnUI components with latest patterns
 - Dark mode support via next-themes
 - Proper directory structure with src/ directory
 - App Router
@@ -29,42 +29,14 @@ Make sure you have the following installed:
 
 ## Usage
 
-There are two setup scripts available:
-
-### Stable Version (Recommended for Production)
-
-Run the stable version script from your desired parent directory:
+Run the setup script from your desired parent directory:
 
 ```bash
 ./setup/next.sh your-app-name
 ```
 
-This uses the latest stable versions of Next.js and all dependencies.
 
-### Canary Version (Latest Features)
-
-For the bleeding edge version with latest updates:
-
-```bash
-./setup/next-canary.sh your-app-name
-```
-
-The canary version includes:
-- Latest Next.js canary release
-- Tailwind CSS v4
-- Latest shadcn component patterns and updates
-- Newer size utility classes (e.g., `size-[1.2rem]`)
-
-Choose this version if you want to experiment with the newest features and updates.
-
-For example:
-```bash
-./setup/next.sh my-nextjs-app  # stable version
-# or
-./setup/next-canary.sh my-nextjs-app  # latest features
-```
-
-Either script will:
+The script will:
 1. Create a new directory with your app name
 2. Initialize a Next.js project with TypeScript and Tailwind CSS
 3. Install and configure additional dependencies
